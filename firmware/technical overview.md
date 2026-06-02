@@ -1,4 +1,4 @@
-# Smart Air Purifier — Interview Reference Guide
+# Smart Air Purifier — Technical overview
 
 ## Project Summary
 A BLE-controlled smart air purifier built on ESP32-S3 with a native iOS app. The ESP32 runs FreeRTOS firmware that controls a real air purifier's fan motor via PWM, reads manual button input, and communicates wirelessly with an iPhone over BLE 5.0. The iOS app is written in Swift/SwiftUI with CoreBluetooth.
@@ -134,7 +134,7 @@ Hardcoded to high speed (duty = 242). Can be overridden via app after schedule f
 
 ---
 
-## Bugs Debugged (Good Interview Stories)
+## Bugs Debugged
 
 ### 1. UUID Byte Ordering
 Problem: Status characteristic not found by iOS app even though UUID looked correct.
