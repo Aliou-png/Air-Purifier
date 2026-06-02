@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../../../Downloads/ESP-test"
+		},
+		{
+			"name": "UART-Test",
+			"path": "."
+		}
+	],
+	"settings": {}
+}
