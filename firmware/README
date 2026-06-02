@@ -1,0 +1,178 @@
+# Smart Air Purifier — ESP32 BLE Controller
+
+Aliou Tippett — Computer Engineering, University of Utah 2026
+
+A BLE-controlled smart air purifier built on ESP32-S3 with a native iOS app. 
+The ESP32 runs custom FreeRTOS firmware that controls a real air purifier fan motor via PWM and communicates wirelessly with an iPhone over BLE 5.0.
+
+---
+
+## Demo
+
+Connect the iOS app, control fan speed, set a schedule, and watch the purifier respond in real time. 
+Manual button presses on the original purifier hardware are detected and reflected in the app instantly.
+
+---
+
+## Features
+
+- BLE 5.0 wireless control from iPhone
+- Fan power on/off and speed control (Low / Medium / High)
+- Real-time status notifications — app updates instantly on any state change
+- Autonomous daily schedule — runs without phone connected
+- Time-synchronized via iOS app on connect — no WiFi or cloud required
+- Manual override via original purifier button board
+- All inputs (BLE, schedule, manual) coexist cleanly via an event-driven architecture
+
+---
+
+## Tech Stack
+
+MCU: ESP32-S3 N16R8 
+Firmware Framework: ESP-IDF v5.5 
+RTOS:  FreeRTOS 
+BLE Stack: NimBLE
+Build System: PlatformIO 
+
+---
+
+## Firmware Architecture
+
+4 concurrent FreeRTOS tasks communicate via a central event queue:
+
+
+BLE Task ──────────────┐
+Scheduler Task ────────┤──► Control Queue ──► Control Task ──► PWM / GPIO
+Manual Monitor Task ───┘
+
+
+The control task is the single owner of all hardware. 
+No other task touches GPIO or PWM directly — they send events and the control task decides what to do. 
+This eliminates race conditions without needing hardware mutexes.
+
+A mutex-protected purifier_status_t struct is the shared source of truth for all state.
+
+---
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+## BLE GATT Service
+
+Custom primary service with 6 characteristics:
+
+Power (Write): On/Off 
+Fan Speed (Write): Low / Medium / High 
+Mode (Write): Placeholder for future modes 
+Status (Notify): 9-byte real-time state push
+Schedule (Write): 5-byte schedule payload 
+Time (Write): 3-byte time sync from app 
+
+Status notification payload (9 bytes):
+```
+[isPowered, fanSpeed, mode, scheduleEnabled, startHour, startMin, endHour, endMin, filterStatus]
+```
+
+---
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+## Hardware
+
+### Wiring Overview
+```
+ESP32-S3 (3.3V)
+    │
+    ├── GPIO 2 ──► Logic Converter CH1 ──► Fan PWM (5V)
+    ├── GPIO 4 ──► Logic Converter CH2 ──► Fan Enable (5V)
+    ├── GPIO 12 ◄── Logic Converter CH3 ◄── Button Board PWM (5V)
+    └── GPIO xx ◄── Logic Converter CH4 ◄── Button Board Enable (5V)
+
+Power:
+    Purifier 5V rail ──► Logic Converter HV + Button Board VCC
+    ESP32 USB / 5V pin ──► Onboard 3.3V regulator
+    Common GND across all components
+```
+
+### Fan Control
+LEDC peripheral, 5kHz, 8-bit resolution.
+- Off: 0%
+- Low: ~47% (duty 120)
+- Medium: ~71% (duty 180)
+- High: ~95% (duty 242)
+
+### Button Board Input
+Digital PWM at ~25kHz sampled at 47µs intervals (100 samples) to detect speed level. 
+ISR detects edge change, task handles debounce and classification.
+
+---
+
+## Scheduler
+
+The scheduler runs autonomously without BLE:
+- App sends current time on connect (3 bytes: hour, minute, second)
+- ESP increments internal clock every second
+- Scheduler fires power on/off events at configured start/end times
+- Supports overnight schedules (e.g. 10pm to 6am)
+- Defaults to high speed when schedule turns on
+
+---
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+## Project Structure
+
+src/
+├── main.c          ← app_main, control task, PWM
+├── ble.c / ble.h   ← NimBLE stack, GATT service, characteristics
+├── scheduler.c / scheduler.h  ← autonomous schedule task
+├── manual.c / manual.h        ← ISR + button board monitor task
+└── purifier.h      ← shared types, purifier_status_t, event enums
+
+---
+
+## Build
+
+Requirements:
+- PlatformIO
+- ESP-IDF framework (installed via PlatformIO)
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+sdkconfig. defaults require:
+
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_CONTROLLER_ENABLED=y
+CONFIG_BT_CLASSIC_ENABLED=n
+CONFIG_BT_BLUEDROID_ENABLED=n
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16mb"
+CONFIG_BT_NIMBLE_LOG_LEVEL_NONE=y
+
+Build and flash:
+```bash
+pio run -t upload
+pio device monitor
+
+---
+
+## iOS App
+
+The iOS app is a separate Swift/SwiftUI project using CoreBluetooth. 
+MVVM architecture fully decouples BLE logic from the UI layer. 
+The ViewModel manages device scanning, connection, characteristic discovery, and all read/write/notify operations.
+
+---
+
+## Known Limitations
+
+- Software clock drifts slightly over long periods (no hardware RTC)
+- Schedule resets to default on power cut (no NVS persistence by design)
+- Logic converter limits expansion to 4 signal channels
+
+---
+
+## Built By
+
+Aliou Tippett — Computer Engineering, University of Utah 2026
