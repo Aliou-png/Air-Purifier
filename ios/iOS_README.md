@@ -4,30 +4,12 @@
 **Developer:** Aliou Tippett  
 **Platform:** iOS 14.0+  
 **Language:** Swift / SwiftUI  
-**Status:** Complete ✅
 
 ---
 
 ## Overview
 
 Native iOS app that wirelessly controls a custom air purifier via Bluetooth Low Energy. The app connects to an ESP32-S3 microcontroller acting as a BLE GATT server and provides full control over power, fan speed, mode, and scheduling.
-
----
-
-## Architecture
-
-MVVM (Model-View-ViewModel) pattern.
-
-```
-Models/
-    AirPurifier.swift              ← data model + PurifierMode enum
-ViewModels/
-    AirPurifierViewModel.swift     ← all BLE logic + state management
-Views/
-    ContentView.swift              ← connection screen
-    DeviceListView.swift           ← BLE device scanner
-    ControlPanelView.swift         ← main control interface
-```
 
 ---
 
