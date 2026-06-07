@@ -1,4 +1,4 @@
-Developer: Aliou Tippett — Spring 2026
+Developer: Aliou Tippett — summer 2026
 
 # Smart Air Purifier — Project Overview 
 
